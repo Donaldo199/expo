@@ -67,30 +67,9 @@ function createRequestHandler({ getRoutesManifest, getHtml, getApiRoute, logApiR
             if (!route.namedRegex.test(sanitizedPathname)) {
                 continue;
             }
-            let func;
             try {
-                func = await getApiRoute(route);
-            }
-            catch (error) {
-                if (error instanceof Error) {
-                    logApiRouteExecutionError(error);
-                }
-                return handleApiRouteError(error);
-            }
-            if (func instanceof Response) {
-                return func;
-            }
-            const routeHandler = func?.[request.method];
-            if (!routeHandler) {
-                return new Response('Method not allowed', {
-                    status: 405,
-                    headers: { 'Content-Type': 'text/plain' },
-                });
-            }
-            const params = parseParams(request, route);
-            try {
-                // TODO: Handle undefined
-                return (await routeHandler(request, params));
+                const mod = await getApiRoute(route);
+                return await respondAPI(mod, request, route);
             }
             catch (error) {
                 if (error instanceof Error) {
@@ -125,6 +104,39 @@ function createRequestHandler({ getRoutesManifest, getHtml, getApiRoute, logApiR
         });
         return response;
     }
+}
+async function respondAPI(mod, request, route) {
+    if (!mod || typeof mod !== 'object') {
+        // NOTE(@krystofwoldrich): expo/server would return 405
+        throw new Error(`API route module ${route.page} could not be loaded`);
+    }
+    if (mod instanceof Response) {
+        // TODO: Check where is this used?
+        return mod;
+    }
+    const handler = mod[request.method];
+    if (!handler || typeof handler !== 'function') {
+        return new Response('Method not allowed', {
+            status: 405,
+            headers: {
+                'Content-Type': 'text/plain',
+            },
+        });
+    }
+    const params = parseParams(request, route);
+    const response = await handler(request, params);
+    if (!isResponse(response)) {
+        throw new Error(`API route ${request.method} handler ${route.page} resolved to a non-Response result`);
+    }
+    const headers = new Headers(response.headers);
+    return new Response(response.body, {
+        headers,
+        status: response.status,
+        statusText: response.statusText,
+        // Cloudflare Response type properties
+        cf: response.cf,
+        webSocket: response.webSocket,
+    });
 }
 function respondHTML(html) {
     if (typeof html === 'string') {
