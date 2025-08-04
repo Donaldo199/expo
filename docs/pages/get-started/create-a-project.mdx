@@ -1,24 +1,33 @@
----
-title: Create a project
-description: Learn how to create a new Expo project.
-hideTOC: true
----
+// File: App.jsx import React, { useState, useEffect } from "react"; import { Button } from "@/components/ui/button";
 
-import { Terminal } from '~/ui/components/Snippet';
+const symbols = ["🍒", "🔔", "🍋", "⭐", "💎"];
 
-System requirements:
+const getRandomSymbol = () => symbols[Math.floor(Math.random() * symbols.length)];
 
-- [Node.js (LTS)](https://nodejs.org/en/).
-- macOS, Windows (Powershell and [WSL 2](https://expo.fyi/wsl)), and Linux are supported.
+export default function SlotMachine() { const [reels, setReels] = useState(["🍒", "🍒", "🍒"]); const [spinning, setSpinning] = useState(false); const [balance, setBalance] = useState(100); const [message, setMessage] = useState(""); const bet = 10;
 
-We recommend starting with the default project created by `create-expo-app`. The default project includes example code to help you get started.
+const spin = () => { if (balance < bet || spinning) return; setSpinning(true); setMessage(""); setBalance((b) => b - bet);
 
-To create a new project, run the following command:
+const interval = setInterval(() => {
+  setReels([getRandomSymbol(), getRandomSymbol(), getRandomSymbol()]);
+}, 100);
 
-<Terminal cmd={['$ npx create-expo-app@latest']} />
+setTimeout(() => {
+  clearInterval(interval);
+  const final = [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()];
+  setReels(final);
+  setSpinning(false);
 
-> You can choose a different template by adding the [`--template` option](/more/create-expo/#--template).
+  if (final[0] === final[1] && final[1] === final[2]) {
+    const winAmount = bet * 5;
+    setBalance((b) => b + winAmount);
+    setMessage(`🎉 You won ${winAmount} coins!`);
+  } else {
+    setMessage("😢 No match. Try again!");
+  }
+}, 2000);
 
-## Next step
+};
 
-You have a project. Now it's time to set up your development environment so that you can start developing.
+return ( <div className="flex flex-col items-center justify-center min-h-screen bg-green-800 text-white"> <h1 className="text-4xl font-bold mb-6">🎰 Slot Machine</h1> <div className="flex space-x-4 text-6xl bg-black px-8 py-4 rounded-xl shadow-lg"> {reels.map((symbol, i) => ( <span key={i}>{symbol}</span> ))} </div> <p className="mt-4 text-xl">Balance: {balance} coins</p> <Button className="mt-6" onClick={spin} disabled={spinning || balance < bet}> {spinning ? "Spinning..." : Spin (-${bet})} </Button> <p className="mt-4 text-lg">{message}</p> </div> ); }
+
